@@ -12,18 +12,17 @@
 #include "socket_info.h"
 #include <unistd.h>
 #include "queue_utils.h"
-#include <sys/mman.h>
 #include<sys/select.h>
 
 
-extern int* exitCollector;
+static char* exitString = "exit";
+static char* displayString = "display";
 
 static queue* list = NULL;
 
 
 static void maskSignals(sigset_t *set){
     int err;
-   // struct sigaction sa;
 
     sigemptyset(set);
     SYSCALL(err,pthread_sigmask(SIG_SETMASK,set,NULL),"pthread_sigmask");
@@ -47,7 +46,7 @@ void runCollector(int pfd){
     char* buff = NULL;
     address.sun_family = AF_UNIX;
     strncpy(address.sun_path,SOCKNAME,UNIX_MAX_PATH);
-
+    int _exit = 0;
     sigset_t set_mask;
     maskSignals(&set_mask);
  
@@ -69,7 +68,7 @@ void runCollector(int pfd){
 
     printf("COLLECTOR: collegato al server\n");
 
-    while(!(*exitCollector)){
+    while(!_exit){
         readyset = set;
         
         if((err = select(fd_num + 1,&readyset,NULL,NULL,NULL))==-1){
@@ -110,7 +109,7 @@ void runCollector(int pfd){
                         SYSCALL(n,read(pfd,&len,sizeof(int)),"read len from pipe");
 
                         if(n == 0){
-                            printf("PIPE N = 0\n");
+                            printf("PIPE 0\n");
                             FD_CLR(pfd,&set);
                             if(fd == fd_num)
                                 fd_num--;
@@ -122,32 +121,30 @@ void runCollector(int pfd){
                         buff = malloc(sizeof(char)*len+1);
 
                         CHECKNULL(buff,"malloc");
-                        
                         if((n = read(pfd,buff,len)) == -1){
                             free(buff);
                             break;
                         }
 
                         buff[len] = '\0';
-                        printf("COLLECTOR: leggo dalla pipe: %s\n",buff);
-                        free(buff);
-                        queueDisplay(list);
+                        
+                        if(strncmp(buff,displayString,len) == 0){
+                            printf("COLLECTOR: leggo dalla pipe: %s\n",buff);
+                            queueDisplay(list);
+                            free(buff);
+                        }
+
+                        else if (strncmp(buff,exitString,len) == 0){
+                            printf("COLLECTOR: leggo dalla pipe: %s\n",buff);
+                            _exit = 1;
+                            free(buff);
+                            break;
+                        }
 
 
-                        FD_CLR(pfd,&set);
-                        if(fd == fd_num)
-                            fd_num--;
-                
-
-
-                    }
-
-                    else if(fd == pfd){
-                        FD_SET(pfd,&set);
-                        if(pfd > fd_num)
-                            fd_num = pfd;
 
                     }
+
                 }
 
             }

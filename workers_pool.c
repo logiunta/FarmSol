@@ -21,7 +21,7 @@ extern queue* sharedQueue;
 extern pthread_mutex_t mutex_queue;
 extern pthread_cond_t cond_notEmpty;
 extern pthread_cond_t cond_isFull;
-extern int requestedExit;
+extern volatile int requestedExit;
 
 
 static void executeTask(node* nodo,int tid){

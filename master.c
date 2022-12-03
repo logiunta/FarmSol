@@ -30,17 +30,14 @@ static int queueDim = QUEUESIZE;
 
 extern threadinfo *threadsInfo;
 extern pthread_t *workersPool;
-extern int* exitCollector;
 
 queue* sharedQueue = NULL;
 pthread_mutex_t mutex_queue = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_pipe = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_notEmpty = PTHREAD_COND_INITIALIZER; 
 pthread_cond_t cond_isFull = PTHREAD_COND_INITIALIZER;
 
-int requestedExit = 0;
-volatile sig_atomic_t printValuesCollector = 0;
-
-
+volatile int requestedExit = 0;
 
 static void print_status(int pid,int status){
     printf("\nPID of the child process that was just created:  %d.\n", pid);
@@ -62,17 +59,30 @@ static void print_status(int pid,int status){
 }
 
 
-static void notifyToCollector(int pfd){
+static void notifyCloseToCollector(int pfd){
+    int err;
+    char* message = "exit";
+    int len = strlen(message);
+    Pthread_mutex_lock(&mutex_pipe);
+    SYSCALL(err,write(pfd,&len,sizeof(int)),"write len");
+    SYSCALL(err,write(pfd,message,len),"write buff");
+    Pthread_mutex_unlock(&mutex_pipe);
+    printf("THREAD_HANDLER: ho notificato al collector la chiusura \n");
+    fflush(stdout);
+}
+
+static void notifyDisplayToCollector(int pfd){
     int err;
     char* message = "display";
     int len = strlen(message);
+    Pthread_mutex_lock(&mutex_pipe);
     SYSCALL(err,write(pfd,&len,sizeof(int)),"write len");
     SYSCALL(err,write(pfd,message,len),"write buff");
-    printf("THREAD_HANDLER: ho notificato al collector\n");
+    Pthread_mutex_unlock(&mutex_pipe);
+    printf("THREAD_HANDLER: ho notificato al collector di stampare\n");
     fflush(stdout);
 
 }
-
 
 static void* handler(void* args){
     int* pfd = (int*)args;
@@ -87,17 +97,18 @@ static void* handler(void* args){
             case SIGQUIT:
             case SIGTERM:
             case SIGINT:
-                requestedExit = 1;
                 printf("HANDLER_THREAD: chiusura catturata\n");
+                requestedExit = 1;
                 break;
           
             //caso in cui il master deve inviare una notifica di stampa al collector
             case SIGUSR1:
-                notifyToCollector(*pfd);
+                notifyDisplayToCollector(*pfd);
                 break;
             
             case SIGALRM:
                 printf("HANDLER_THREAD: sigalarm arrivato");
+                break;
             default:
                 break;
         }
@@ -107,38 +118,16 @@ static void* handler(void* args){
     pthread_exit(0);
 }
 
-static void handlerClose(){
-    requestedExit = 1;
-    write(1,"Segnale catturato\n",19);
-}
+
 
 static void setMask(){
     int err;
 
-    struct sigaction sa;
-    // sigfillset(&set); // IGNORA TUTTI I SEGNALI
-
-    // SYSCALL(err,pthread_sigmask(SIG_SETMASK,&set,NULL),"pthread_sigmask");
-    // memset(&sa, 0, sizeof(sa));
-
-
-    // sa.sa_handler = handlerClose;
-    
-    // SYSCALL(err, sigaction(SIGPIPE,&sa,NULL),"Sigaction");
-    // SYSCALL(err, sigaction(SIGQUIT,&sa,NULL),"Sigaction");
-    // SYSCALL(err, sigaction(SIGINT,&sa,NULL),"Sigaction");
-    // SYSCALL(err, sigaction(SIGHUP,&sa,NULL),"Sigaction");
-    // SYSCALL(err, sigaction(SIGTERM,&sa,NULL),"Sigaction");
-
     sigemptyset(&set);
     SYSCALL(err,pthread_sigmask(SIG_SETMASK,&set,NULL),"pthread_sigmask");
 
-
-
     sigaddset(&set, SIGUSR1);
-
     sigaddset(&set,SIGALRM);
-
     sigaddset(&set, SIGPIPE);
     sigaddset(&set, SIGINT);
     sigaddset(&set, SIGHUP);
@@ -147,31 +136,6 @@ static void setMask(){
    
     SYSCALL(err,pthread_sigmask(SIG_BLOCK,&set,NULL),"pthread_sigmask");
 }
-
-// static void setMask(sigset_t* set_mask){
-//     int err;
-//     struct sigaction sa;
-//     sigfillset(&set_mask); // IGNORA TUTTI I SEGNALI
-  
-//     SYSCALL(err,pthread_sigmask(SIG_SETMASK,&set_mask,NULL),"pthread_sigmask");
-//     memset(&sa, 0, sizeof(sa));
-   
-//    // sa.sa_handler = SIG_IGN;
-   
-//     sa.sa_handler = handlerClose;
-//     SYSCALL(err, sigaction(SIGPIPE,&sa,NULL),"Sigaction");
-//    // SYSCALL(err, sigaction(SIGQUIT,&sa,NULL),"Sigaction");
-//     SYSCALL(err, sigaction(SIGINT,&sa,NULL),"Sigaction");
-//     SYSCALL(err, sigaction(SIGHUP,&sa,NULL),"Sigaction");
-
-//     // sa.sa_handler = handlerNotify;
-//     // SYSCALL(err, sigaction(SIGUSR1,&sa,NULL),"Sigaction");
-//     sigemptyset(&set_mask);
-//     SYSCALL(err,pthread_sigmask(SIG_SETMASK,&set_mask,NULL),"pthread_sigmask");
- 
-
-// }
-
 
 
 void cleanup(){
@@ -297,8 +261,9 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     printf("MASTER: aspetto che il collector termini\n");
     fflush(stdout);
 
-    //master comunica al collector di chiudere
-    *exitCollector = 1;
+    //master comunica al collector di chiudere  
+    notifyCloseToCollector(pfd);
+  //  *exitCollector = 1;
     //dopo il join so che nessun worker sta più usando fd_col
     close(fd_col);
     free(threadsInfo);
@@ -313,13 +278,12 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     SYSCALL(err,waitpid(pid, &status,WUNTRACED),"waitpid");
     print_status(pid,status);
 
-    printf("MASTER: il collector ha terminato\n: valore %d\n",*exitCollector);
 
     close(fd_socket);
-    munmap(exitCollector,sizeof(int));
+  
 
     //una volta che il collector è chiuso il master può chiudere il thread signal handler
-     SYSCALL(err,pthread_kill(signalHandler,SIGALRM),"kill");
+    SYSCALL(err,pthread_kill(signalHandler,SIGALRM),"kill");
 
     if(pthread_join(signalHandler,NULL) != 0){
             perror("join");

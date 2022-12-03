@@ -19,12 +19,6 @@
 #include <socket_info.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/mman.h>
-
-// volatile sig_atomic_t* printValues;
-int *exitCollector;
-
-
 
 
 int main(int argc, char *argv[])
@@ -48,14 +42,8 @@ int main(int argc, char *argv[])
     SYSCALL(err,listen(fd_socket,SOMAXCONN),"listen");
 
  
-    exitCollector = (int*)mmap(NULL,sizeof(int),PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS ,-1, 0);
 
-      if (*exitCollector == -1) {
-        perror("mmap");
-        return -1;
-    }
 
-    *exitCollector = 0;
     SYSCALL(err,pipe(pfds),"pfd pipe");
 
     SYSCALL(pid,fork(),"fork");
