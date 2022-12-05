@@ -41,9 +41,6 @@ int main(int argc, char *argv[])
 
     SYSCALL(err,listen(fd_socket,SOMAXCONN),"listen");
 
- 
-
-
     SYSCALL(err,pipe(pfds),"pfd pipe");
 
     SYSCALL(pid,fork(),"fork");

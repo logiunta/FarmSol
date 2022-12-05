@@ -84,6 +84,7 @@ void runCollector(int pfd){
                 if(FD_ISSET(fd,&readyset)){
                     
                     if(fd == fd_socket){ //pronta socket, leggo file dai workers
+                        printf("\t\tSOCKET PRONTA\n");
                         SYSCALL(n,read(fd_socket,&len,sizeof(int)),"read len");
                         if(n != 0){
                             buff = malloc(sizeof(char)*len+1);
@@ -109,7 +110,6 @@ void runCollector(int pfd){
                         SYSCALL(n,read(pfd,&len,sizeof(int)),"read len from pipe");
 
                         if(n == 0){
-                            printf("PIPE 0\n");
                             FD_CLR(pfd,&set);
                             if(fd == fd_num)
                                 fd_num--;
