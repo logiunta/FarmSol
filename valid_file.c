@@ -36,9 +36,10 @@ int is_executable_file(const char* path,struct stat *path_stat){
 }
 
 int isBinaryFile(const char* path,struct stat *path_stat){
-    // char* ext = fileExtension(path);
-    // if((strncmp(ext,"dat",strlen(ext)) != 0) && (strncmp(ext,"",strlen(ext)) != 0))
-    //     return 0;
+    char* ext = fileExtension(path);
+    if((strncmp(ext,"dat",strlen(ext))) != 0)
+         return 0;
+
     long filelen = getFileSize(path,path_stat);
 
     if((filelen % 8) != 0)

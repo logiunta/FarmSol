@@ -30,19 +30,17 @@ static void executeTask(node* nodo,int tid){
     long n;
     FILE* in;
     long len;
-    int sum = 0,err;
+    long sum = 0,err;
 
     //simulate work time for each execution
 
     int randomTime = (rand() % 3000) + 1000 ;
-    printf("WOrker %d: eseguo il lavoro per %d(ms). . . \n",tid,randomTime);
+    printf("WOrker %d: calcolo la somma per il file %s.\t Tempo previsto: %d(ms). . . \n",tid,file,randomTime);
     fflush(stdout);
 
     randomTime = randomTime/1000;
    
     sleep(randomTime);
-
-  
 
     in = fopen(file,"rb");
     CHECKNULL(in,"fopen");
@@ -62,6 +60,7 @@ static void executeTask(node* nodo,int tid){
         exit(EXIT_FAILURE);
     }   
 
+    printf("Len: %ld\n",len);
     for(int i=0;i<len;i++){
         sum += (i*buffIn[i]);
         
@@ -74,6 +73,7 @@ static void executeTask(node* nodo,int tid){
     len = strlen(file);
     printf("Worker %d: consumato il file %s\n",tid,file);
     fflush(stdout);
+    SYSCALL(err,write(fd_coll,&sum,sizeof(long)),"write sum");
     SYSCALL(err,write(fd_coll,&len,sizeof(int)),"write len");
     SYSCALL(err,write(fd_coll,file,len),"write buff");
     Pthread_mutex_unlock(&mutex_socket);
@@ -126,7 +126,7 @@ void* task(void* args){
     }
         
    
-    printf("Worker %d: esco dal pool e mi chiudo: requesteExit = %d\n",tid,requestedExit);
+    printf("Worker %d: esco dal pool e mi chiudo\n",tid);
     pthread_exit(0);
 
         

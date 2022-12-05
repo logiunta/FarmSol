@@ -1,37 +1,36 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "queue_utils.h"
+#include "results_utils.h"
 #include "check_errors.h"
 #include <string.h>
 
-
-void initQueue(queue** q){
-    *q = malloc(sizeof(queue));
+void initResQueue(resQueue** q){
+    *q = malloc(sizeof(resQueue));
     CHECKNULL(*q,"malloc");
     (*q)->head = NULL;
     (*q)->size = 0;
 }
 
-void enqueueFront(queue** q,char *val, int fd){
-    node *new = malloc(sizeof(node));
+void resEnqueueFront(resQueue** q,char *val, long sum){
+    resFile *new = malloc(sizeof(resFile));
     CHECKNULL(new,"malloc");
 
     new->fileName = val;
-    new->fd = fd;
+    new->sum = sum;
     new->next = (*q)->head;
     
     (*q)->head = new;
     (*q)->size++;
 }
 
-node* dequeueFront(queue** q){
+resFile* resDequeueFront(resQueue** q){
   
     if((*q)->head == NULL){
         printf("lista vuota\n");
         return NULL;
     }
     
-    node* tmp = (*q)->head;
+    resFile* tmp = (*q)->head;
 
     (*q)->head = ((*q)->head)->next;
     (*q)->size--;
@@ -39,10 +38,10 @@ node* dequeueFront(queue** q){
     return tmp;
 }
 
-void enqueueBack(queue** q, char *val, int fd){
-    node *tmp = malloc(sizeof(node));
+void resEnqueueBack(resQueue **q, char *val, long sum){
+    resFile *tmp = malloc(sizeof(resFile));
     CHECKNULL(tmp,"malloc");
-    node *currHead = (*q)->head;
+    resFile *currHead = (*q)->head;
     int len;
     if(val != 0){
             
@@ -50,7 +49,7 @@ void enqueueBack(queue** q, char *val, int fd){
         tmp->fileName = malloc(sizeof(char)*len+1);
         strncpy(tmp->fileName,val,len);
         tmp->fileName[len] = '\0';
-        tmp->fd = fd;
+        tmp->sum = sum;
         tmp->next = NULL;
     
         
@@ -70,44 +69,18 @@ void enqueueBack(queue** q, char *val, int fd){
 
 }
 
-int queueLen(queue* q){
+int resQueueLen(resQueue *q){
     if(q == NULL)
         return 0;
     return q->size;
   
 }
 
-void queueDisplayWithFd(queue* q){
-    node *curr = q->head;
-    while(curr != NULL){
-        printf("(%d): %s " , curr->fd, curr->fileName);
-          if(curr->next != NULL)
-            printf("-> ");
-        curr = curr->next;
-    }
-    printf("\n");
-}
 
-
-void queueDisplay(queue* q){
-    printf("STAMPO LA LISTA:\n");
-    node *curr = q->head;
-    while(curr != NULL){
-        printf("%s ",curr->fileName);
-        if(curr->next != NULL)
-            printf("-> ");
-
-        curr = curr->next;
-    }
-    printf("\n");
-
-
-}
-
-void freeQueue(queue** q){
+void freeResQueue(resQueue **q){
   
     while((*q)->head!=NULL){
-        node *delete = (*q)->head;
+        resFile *delete = (*q)->head;
         (*q)->head = delete->next;
         free(delete->fileName);
         free(delete);
@@ -116,12 +89,23 @@ void freeQueue(queue** q){
     free(*q);
     
  
-
 }
 
-void freeSingleNode(node** q){
+void freeNode(resFile** q){
     free((*q)->fileName);
     free(*q);
 }
 
 
+void queueResultsDisplay(resQueue* q){
+    printf("STAMPO LA LISTA:\n");
+    resFile *curr = q->head;
+    while(curr != NULL){
+        printf("%ld ",curr->sum);
+        printf("%s \n",curr->fileName);
+    
+        curr = curr->next;
+    }
+    printf("\n");
+
+}

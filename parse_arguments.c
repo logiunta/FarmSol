@@ -53,7 +53,6 @@ void goInDir(char*path,queue** list,int *errors,struct stat *path_stat){
             }
                 
             else if(res == 1){
-                printf("dir: %s\n",relativePath);
                 goInDir(relativePath,list,errors,path_stat);
             }
 

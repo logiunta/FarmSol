@@ -11,14 +11,14 @@
 #include <sys/socket.h>
 #include "socket_info.h"
 #include <unistd.h>
-#include "queue_utils.h"
-#include<sys/select.h>
-
+#include <sys/select.h>
+#include "results_utils.h"
 
 static char* exitString = "exit";
 static char* displayString = "display";
 
-static queue* list = NULL;
+static resQueue* list = NULL;
+
 
 
 static void maskSignals(sigset_t *set){
@@ -43,6 +43,7 @@ void runCollector(int pfd){
     int fd_socket;
     struct sockaddr_un address; 
     int n = 0,len,err;
+    long sum;
     char* buff = NULL;
     address.sun_family = AF_UNIX;
     strncpy(address.sun_path,SOCKNAME,UNIX_MAX_PATH);
@@ -55,7 +56,7 @@ void runCollector(int pfd){
 
     SYSCALL(err,connect(fd_socket,(struct sockaddr*)&address,sizeof(address)),"connect");
 
-    initQueue(&list);
+    initResQueue(&list);
     fd_set set, readyset;
     int fd_num = 0,fd;
     FD_ZERO(&set);
@@ -85,23 +86,29 @@ void runCollector(int pfd){
                     
                     if(fd == fd_socket){ //pronta socket, leggo file dai workers
                         printf("\t\tSOCKET PRONTA\n");
-                        SYSCALL(n,read(fd_socket,&len,sizeof(int)),"read len");
+
+                        SYSCALL(n,read(fd_socket,&sum,sizeof(long)),"read sum");
+                        
                         if(n != 0){
-                            buff = malloc(sizeof(char)*len+1);
-                            CHECKNULL(buff,"malloc");
+                            SYSCALL(n,read(fd_socket,&len,sizeof(int)),"read len");
                             
-                            if((n = read(fd_socket,buff,len)) == -1){
+                            if(n != 0){
+                                buff = malloc(sizeof(char)*len+1);
+                                CHECKNULL(buff,"malloc");
+                                
+                                if((n = read(fd_socket,buff,len)) == -1){
+                                    free(buff);
+                                    break;
+                                }
+
+                                buff[len] = '\0';
+
+                                //collector uses sum as fd;
+                                resEnqueueBack(&list,buff,sum);
                                 free(buff);
-                                break;
                             }
-                    
-                            buff[len] = '\0';
-                    
-                            enqueueBack(&list,buff,-1);
-                            free(buff);
                         }
 
-                        
                     }
 
                     if(fd == pfd){ //pronta pipe, leggo notifica dal master
@@ -117,7 +124,6 @@ void runCollector(int pfd){
     
                         }
 
-                    
                         buff = malloc(sizeof(char)*len+1);
 
                         CHECKNULL(buff,"malloc");
@@ -130,7 +136,7 @@ void runCollector(int pfd){
                         
                         if(strncmp(buff,displayString,len) == 0){
                             printf("COLLECTOR: leggo dalla pipe: %s\n",buff);
-                            queueDisplay(list);
+                            queueResultsDisplay(list);
                             free(buff);
                         }
 
@@ -151,9 +157,9 @@ void runCollector(int pfd){
         }
     }
 
-
-    queueDisplay(list);
-    freeQueue(&list);
+    printf("\n");
+    queueResultsDisplay(list);
+    freeResQueue(&list);
     printf("Collector: ho finito, mi chiudo\n");
     fflush(stdout);
     exit(0);
