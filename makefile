@@ -7,9 +7,10 @@ objects = parse_arguments.o collector.o workers_pool.o queue_utils.o results_uti
 
 .PHONY : clean farm run cleanFiles
 
-cleanFiles: 
+cleanAll: 
 	-rm -f file*.dat
 	-rm -f -R testdir
+	-rm -f expected.txt
 
 clean : 
 	-rm -f $(objects)
