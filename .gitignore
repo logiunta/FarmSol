@@ -12,3 +12,5 @@
 /testFiles
 /testdir/
 /file*.dat
+/expected.txt
+farm
