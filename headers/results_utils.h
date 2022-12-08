@@ -23,6 +23,7 @@ void freeResQueue(resQueue **q);
 resFile* resDequeueFront(resQueue** q);
 void freeNode(resFile** node);
 void queueResultsDisplay(resQueue* q);
+void sortQueue(resQueue** q);
 
 
 #endif

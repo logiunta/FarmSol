@@ -66,8 +66,7 @@ static void notifyCloseToCollector(int pfd){
     SYSCALL(err,write(pfd,&len,sizeof(int)),"write len");
     SYSCALL(err,write(pfd,message,len),"write buff");
     Pthread_mutex_unlock(&mutex_pipe);
-    printf("THREAD_HANDLER: ho notificato al collector la chiusura \n");
-    fflush(stdout);
+  
 }
 
 static void notifyDisplayToCollector(int pfd){
@@ -78,26 +77,25 @@ static void notifyDisplayToCollector(int pfd){
     SYSCALL(err,write(pfd,&len,sizeof(int)),"write len");
     SYSCALL(err,write(pfd,message,len),"write buff");
     Pthread_mutex_unlock(&mutex_pipe);
-    printf("THREAD_HANDLER: ho notificato al collector di stampare\n");
-    fflush(stdout);
+  
 
 }
 
 static void* handler(void* args){
-  //  pthread_detach(pthread_self());
     int* pfd = (int*)args;
     int sig = 0;
 
-    printf("HANDLER_THREAD: in ascolto di segnali\n");
     while(!requestedExit){
         sigwait(&set,&sig);
 
         switch (sig)
         {
             case SIGQUIT:
+            case SIGHUP:
             case SIGTERM:
+            case SIGPIPE:
             case SIGINT:
-                printf("HANDLER_THREAD: chiusura catturata\n");
+                printf("SEGNALE CATTURATO\n");
                 requestedExit = 1;
                 break;
           
@@ -107,7 +105,6 @@ static void* handler(void* args){
                 break;
             
             case SIGALRM:
-                printf("HANDLER_THREAD: sigalarm arrivato");
                 break;
             default:
                 break;
@@ -115,8 +112,6 @@ static void* handler(void* args){
     }
 
      
-   
-    printf("\t\t\tTHREAD_HANDLER: mi chiudo\n");
 
     pthread_exit(0);
 }
@@ -130,7 +125,7 @@ static void setMask(){
     SYSCALL(err,pthread_sigmask(SIG_SETMASK,&set,NULL),"pthread_sigmask");
 
     sigaddset(&set, SIGUSR1);
-    sigaddset(&set,SIGALRM);
+    sigaddset(&set, SIGALRM);
     sigaddset(&set, SIGPIPE);
     sigaddset(&set, SIGINT);
     sigaddset(&set, SIGHUP);
@@ -151,18 +146,14 @@ static void addInSharedQueue(int fd){
     char* file = nodoBin->fileName;
     Pthread_mutex_lock(&mutex_queue);
     while(queueLen(sharedQueue) >= queueDim){
-        printf("Master: queue full, waiting for some free space\n");
         Pthread_cond_wait(&cond_isFull,&mutex_queue);
         
     }
 
-    printf("Master: adding a new file into queue\n");
     enqueueBack(&sharedQueue,file,fd); 
     freeSingleNode(&nodoBin); 
     Pthread_mutex_unlock(&mutex_queue);
     Pthread_cond_signal(&cond_notEmpty);   
-    printf("MASTER: rilascio la coda\n");
-    fflush(stdout);
   
 }
 
@@ -189,15 +180,14 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
         exit(EXIT_FAILURE);
 
     }
+
+
     if(res == -1){
         freeQueue(&listBin);
         notifyCloseToCollector(pfd);
         exit(EXIT_FAILURE);
     }
 
-    queueDisplay(listBin);
-    printf("\n\n");
-    fflush(stdout);
 
     if(n > 0)
         nthreads = n;
@@ -217,42 +207,30 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
 
     initQueue(&sharedQueue);
 
-    if((fd_col = accept(fd_socket,NULL,NULL)) == -1){
-        printf("MASTER: chiusura pulita in corso\n");
-        fflush(stdout);
-    }
-    else{
-        printf("Master: connesso al Collector %d\n",fd_col);
-        fflush(stdout);
+    SYSCALL(fd_col,accept(fd_socket,NULL,NULL),"accept");
+    printf("MASTER: connected with Collector\n");   
+    while(!_exit){
+        if(t != 0)
+            sleep((t/1000));
 
-        while(!_exit){
-            if(t != 0)
-                sleep((t/1000));
+        if(!requestedExit && queueLen(listBin) > 0)
+            addInSharedQueue(fd_col);
 
-            if(!requestedExit && queueLen(listBin) > 0)
-                addInSharedQueue(fd_col);
-
-            else _exit = 1;
-            
-        }
-      
+        else _exit = 1;
         
     }
+    
+        
+    
 
     //il master comunica ai workers di chiudere
-    if(!requestedExit){
-        printf("MASTER: non ci sono più file da consumare inzio la procedura di chiusura\n");
+    if(!requestedExit)
         requestedExit = 1;
-    }
-    else{
-        printf("MASTER: richiesta di chiusura, chiusura pulita in corso\n");
-    }
-
-  
+    
+ 
     pthread_cond_broadcast(&cond_notEmpty);
 
-    printf("MASTER: aspetto che i workers finiscano le loro operazioni\n");
-    fflush(stdout);
+  
     for(int i=0;i<nthreads;i++){
         if(pthread_join(workersPool[i],NULL) != 0){
             perror("join");
@@ -260,12 +238,11 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
         }
     }
 
-    printf("MASTER: aspetto che il collector termini\n");
-    fflush(stdout);
+  
 
     //master comunica al collector di chiudere  
     notifyCloseToCollector(pfd);
-  //  *exitCollector = 1;
+
     //dopo il join so che nessun worker sta più usando fd_col
     close(fd_col);
     free(threadsInfo);

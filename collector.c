@@ -16,9 +16,7 @@
 
 static char* exitString = "exit";
 static char* displayString = "display";
-
 static resQueue* list = NULL;
-
 
 
 static void maskSignals(sigset_t *set){
@@ -33,6 +31,7 @@ static void maskSignals(sigset_t *set){
     sigaddset(set, SIGTERM);
     sigaddset(set, SIGQUIT);
     sigaddset(set, SIGUSR1);
+    sigaddset(set, SIGALRM);
    
     SYSCALL(err,pthread_sigmask(SIG_BLOCK,set,NULL),"pthread_sigmask");
   
@@ -55,6 +54,7 @@ void runCollector(int pfd){
     SYSCALL(fd_socket,socket(AF_UNIX,SOCK_STREAM,0),"socket");
 
     SYSCALL(err,connect(fd_socket,(struct sockaddr*)&address,sizeof(address)),"connect");
+     printf("Collector: connected with Master\n"); 
 
     initResQueue(&list);
     fd_set set, readyset;
@@ -67,14 +67,12 @@ void runCollector(int pfd){
     FD_SET(pfd,&set);
     if(pfd > fd_num) fd_num = pfd;
 
-    printf("COLLECTOR: collegato al server\n");
+   
 
     while(!_exit){
         readyset = set;
         
         if((err = select(fd_num + 1,&readyset,NULL,NULL,NULL))==-1){
-            printf("Chiusura pulita in corso\n");
-            fflush(stdout);
             break;
             
         }
@@ -85,8 +83,7 @@ void runCollector(int pfd){
                 if(FD_ISSET(fd,&readyset)){
                     
                     if(fd == fd_socket){ //pronta socket, leggo file dai workers
-                        printf("\t\tSOCKET PRONTA\n");
-
+                    
                         SYSCALL(n,read(fd_socket,&sum,sizeof(long)),"read sum");
                         
                         if(n != 0){
@@ -112,8 +109,6 @@ void runCollector(int pfd){
                     }
 
                     if(fd == pfd){ //pronta pipe, leggo notifica dal master
-                        printf("\t\tPIPE PRONTA\n");
-
                         SYSCALL(n,read(pfd,&len,sizeof(int)),"read len from pipe");
 
                         if(n == 0){
@@ -135,19 +130,16 @@ void runCollector(int pfd){
                         buff[len] = '\0';
                         
                         if(strncmp(buff,displayString,len) == 0){
-                            printf("COLLECTOR: leggo dalla pipe: %s\n",buff);
+                            sortQueue(&list);
                             queueResultsDisplay(list);
                             free(buff);
                         }
 
                         else if (strncmp(buff,exitString,len) == 0){
-                            printf("COLLECTOR: leggo dalla pipe: %s\n",buff);
                             _exit = 1;
                             free(buff);
                             break;
                         }
-
-
 
                     }
 
@@ -157,10 +149,11 @@ void runCollector(int pfd){
         }
     }
 
-    printf("\n");
+    
+
+    sortQueue(&list);
     queueResultsDisplay(list);
+
     freeResQueue(&list);
-    printf("Collector: ho finito, mi chiudo\n");
-    fflush(stdout);
     exit(0);
 }

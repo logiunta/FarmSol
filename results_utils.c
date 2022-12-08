@@ -98,8 +98,8 @@ void freeNode(resFile** q){
 
 
 void queueResultsDisplay(resQueue* q){
-    printf("STAMPO LA LISTA:\n");
     resFile *curr = q->head;
+
     while(curr != NULL){
         printf("%ld ",curr->sum);
         printf("%s \n",curr->fileName);
@@ -107,5 +107,49 @@ void queueResultsDisplay(resQueue* q){
         curr = curr->next;
     }
     printf("\n");
+
+}
+
+
+static resFile* swapNodes(resFile* ptr1, resFile* ptr2)
+{
+    resFile* tmp = ptr2->next;
+    ptr2->next = ptr1;
+    ptr1->next = tmp;
+    return ptr2;
+}
+
+void sortQueue(resQueue** q){
+
+    int len = resQueueLen(*q);
+
+    if((*q)->head == NULL){
+        return;
+    }   
+    int swap = 0;
+
+    resFile** head;
+    
+    for(int i=0; i<=len; i++){
+        head = &(*q)->head;
+        swap = 0;
+        for(int j=0; j<len-1;j++){
+            resFile* curr = *head;
+            resFile* succ = curr->next;
+
+            if(curr->sum > succ->sum){
+                *head = swapNodes(curr,succ);
+                swap = 1;
+            }
+            head = &(*head)->next;
+           
+        }
+
+        if(swap == 0)
+            break;
+        
+    }
+  
+
 
 }

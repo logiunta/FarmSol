@@ -30,8 +30,8 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  unsigned int seed = getpid()*time(NULL); // <-- per generare file sempre diversi 
-  //unsigned int seed =  331777; 
+  //unsigned int seed = getpid()*time(NULL); // <-- per generare file sempre diversi 
+  unsigned int seed =  331777; 
   if (ftruncate(fd, nelem*sizeof(long)) == -1) {
     perror("ftruncate");
     return -1;

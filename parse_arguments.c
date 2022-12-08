@@ -102,8 +102,7 @@ int parseArguments(int argc, char* argv[],int *n,int *q, long *t,queue** list){
     while (optind <= argc) {
     
         if((opt = getopt(argc, argv, ":n:q:d:t:")) != -1) {
-          
-
+        
             switch (opt)
             {
                 case 'n':
@@ -187,9 +186,7 @@ int parseArguments(int argc, char* argv[],int *n,int *q, long *t,queue** list){
   
     //found some files with incorrect format 
     if(errors != 0)
-        fprintf(stderr,"Found some files with incorrect format: take only regular and binary files\n");
-
- 
+        fprintf(stderr,"Found some files with incorrect format: read only regular and binary files\n");
 
     return 0;
 }

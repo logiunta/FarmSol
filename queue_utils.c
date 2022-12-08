@@ -90,7 +90,6 @@ void queueDisplayWithFd(queue* q){
 
 
 void queueDisplay(queue* q){
-    printf("STAMPO LA LISTA:\n");
     node *curr = q->head;
     while(curr != NULL){
         printf("%s ",curr->fileName);
