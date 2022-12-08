@@ -5,10 +5,14 @@ CFLAGS += -g -Wall -std=c99 -I ./headers
 objects = parse_arguments.o collector.o workers_pool.o queue_utils.o results_utils.o valid_file.o pthread_utils.o master.o farm.o 
 
 
-.PHONY : clean farm run
+.PHONY : clean farm run cleanFiles
+
+cleanFiles: 
+	-rm -f file*.dat
+	-rm -f -R testdir
 
 clean : 
-	-rm $(objects)
+	-rm -f $(objects)
 
 run: farm clean
 
