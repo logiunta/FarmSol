@@ -72,7 +72,7 @@ static void executeTask(node* nodo,int tid){
     SYSCALL(err,write(fd_coll,&sum,sizeof(long)),"write sum");
     SYSCALL(err,write(fd_coll,&len,sizeof(int)),"write len");
     SYSCALL(err,write(fd_coll,file,len),"write buff");
- 
+    
     Pthread_mutex_unlock(&mutex_socket);
    
 

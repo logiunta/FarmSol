@@ -21,7 +21,6 @@
 #include "socket_info.h"
 #include "collector.h"
 
-
 static sigset_t set;
 static queue* listBin = NULL;
 static int nthreads = NTHREADS;
@@ -84,7 +83,7 @@ static void notifyDisplayToCollector(int pfd){
 static void* handler(void* args){
     int* pfd = (int*)args;
     int sig = 0;
-
+   
     while(!requestedExit){
         sigwait(&set,&sig);
 
@@ -109,10 +108,9 @@ static void* handler(void* args){
             default:
                 break;
         }
-    }
+    }   
 
-     
-
+  
     pthread_exit(0);
 }
 
@@ -164,7 +162,7 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     int status;
     int _exit = 0;
     pthread_t signalHandler;
- 
+
     int fd_col;
 
     setMask();
@@ -196,6 +194,7 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     threadsInfo = malloc(sizeof(threadinfo)*nthreads);
 
     SYSCALL(err,pthread_create(&signalHandler,NULL,handler,(void*)&pfd),"pthread_create");
+
   
     for(int i=0;i<nthreads;i++){
         threadsInfo[i].tid = i;
@@ -207,7 +206,6 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     initQueue(&sharedQueue);
 
     SYSCALL(fd_col,accept(fd_socket,NULL,NULL),"accept");
-    printf("MASTER: connected with Collector\n");   
     while(!_exit){
         if(t != 0)
             sleep((t/1000));
@@ -257,7 +255,7 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     close(fd_socket);
  
     //una volta che il collector è chiuso il master può chiudere il thread signal handler
-     SYSCALL(err,pthread_kill(signalHandler,SIGALRM),"kill");
+    SYSCALL(err,pthread_kill(signalHandler,SIGALRM),"kill");
 
     if(pthread_join(signalHandler,NULL) != 0){
             perror("join");
@@ -268,7 +266,6 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     cleanup();
     atexit(cleanup);
 
-   
 
     exit(0);
 

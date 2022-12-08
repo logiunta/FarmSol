@@ -14,9 +14,10 @@
 #include <sys/select.h>
 #include "results_utils.h"
 
+
+static resFile* results = NULL;
 static char* exitString = "exit";
 static char* displayString = "display";
-static resQueue* list = NULL;
 
 
 static void maskSignals(sigset_t *set){
@@ -41,7 +42,7 @@ static void maskSignals(sigset_t *set){
 void runCollector(int pfd){
     int fd_socket;
     struct sockaddr_un address; 
-    int n = 0,len,err;
+    int n = 0,len,err,count = 0;
     long sum;
     char* buff = NULL;
     address.sun_family = AF_UNIX;
@@ -54,9 +55,7 @@ void runCollector(int pfd){
     SYSCALL(fd_socket,socket(AF_UNIX,SOCK_STREAM,0),"socket");
 
     SYSCALL(err,connect(fd_socket,(struct sockaddr*)&address,sizeof(address)),"connect");
-    printf("Collector: connected with Master\n"); 
-
-    initResQueue(&list);
+  
     fd_set set, readyset;
     int fd_num = 0,fd;
     FD_ZERO(&set);
@@ -66,8 +65,6 @@ void runCollector(int pfd){
 
     FD_SET(pfd,&set);
     if(pfd > fd_num) fd_num = pfd;
-
-   
 
     while(!_exit){
         readyset = set;
@@ -84,7 +81,6 @@ void runCollector(int pfd){
                     if(fd == fd_socket){ //pronta socket, leggo file dai workers
                     
                         SYSCALL(n,read(fd_socket,&sum,sizeof(long)),"read sum");
-                        
                         if(n != 0){
                             SYSCALL(n,read(fd_socket,&len,sizeof(int)),"read len");
                             
@@ -98,9 +94,11 @@ void runCollector(int pfd){
                                 }
 
                                 buff[len] = '\0';
+                                
 
-                                //collector uses sum as fd;
-                                resEnqueueBack(&list,buff,sum);
+                                addResult(&results,sum,buff,count);
+                                count++;
+    
                                 free(buff);
                             }
                         }
@@ -109,7 +107,6 @@ void runCollector(int pfd){
 
                     if(fd == pfd){ //pronta pipe, leggo notifica dal master
                         SYSCALL(n,read(pfd,&len,sizeof(int)),"read len from pipe");
-
                         if(n == 0){
                             FD_CLR(pfd,&set);
                             if(fd == fd_num)
@@ -120,7 +117,7 @@ void runCollector(int pfd){
 
                         buff = malloc(sizeof(char)*len+1);
                         CHECKNULL(buff,"malloc");
-                        
+
                         if((n = read(pfd,buff,len)) == -1){
                             free(buff);
                             break;
@@ -129,8 +126,8 @@ void runCollector(int pfd){
                         buff[len] = '\0';
                         
                         if(strncmp(buff,displayString,len) == 0){
-                            sortQueue(&list);
-                            queueResultsDisplay(list);
+                            sortResults(&results,count);
+                            displayResults(results,count);
                             free(buff);
                         }
 
@@ -148,11 +145,9 @@ void runCollector(int pfd){
         }
     }
 
-    
-
-    sortQueue(&list);
-    queueResultsDisplay(list);
-
-    freeResQueue(&list);
+  
+    sortResults(&results,count);
+    displayResults(results,count);
+    freeResults(&results,count);
     exit(0);
 }
