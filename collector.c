@@ -54,7 +54,7 @@ void runCollector(int pfd){
     SYSCALL(fd_socket,socket(AF_UNIX,SOCK_STREAM,0),"socket");
 
     SYSCALL(err,connect(fd_socket,(struct sockaddr*)&address,sizeof(address)),"connect");
-     printf("Collector: connected with Master\n"); 
+    printf("Collector: connected with Master\n"); 
 
     initResQueue(&list);
     fd_set set, readyset;
@@ -74,7 +74,6 @@ void runCollector(int pfd){
         
         if((err = select(fd_num + 1,&readyset,NULL,NULL,NULL))==-1){
             break;
-            
         }
         else{
            
@@ -120,8 +119,8 @@ void runCollector(int pfd){
                         }
 
                         buff = malloc(sizeof(char)*len+1);
-
                         CHECKNULL(buff,"malloc");
+                        
                         if((n = read(pfd,buff,len)) == -1){
                             free(buff);
                             break;

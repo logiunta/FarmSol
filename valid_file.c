@@ -1,13 +1,11 @@
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <string.h>
+#include "valid_file.h"
 
 
 int is_regular_file(const char *path, struct stat *path_stat){
     return S_ISREG((*path_stat).st_mode);
-} // char* ext = fileExtension(path);
-    // if((strncmp(ext,"dat",strlen(ext)) != 0) && (strncmp(ext,"",strlen(ext)) != 0))
-    //     return 0;
+} 
 
 
 char* fileExtension(const char *path){

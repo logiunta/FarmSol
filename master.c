@@ -180,8 +180,7 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
         exit(EXIT_FAILURE);
 
     }
-
-
+ 
     if(res == -1){
         freeQueue(&listBin);
         notifyCloseToCollector(pfd);
@@ -222,12 +221,10 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     
         
     
-
     //il master comunica ai workers di chiudere
     if(!requestedExit)
         requestedExit = 1;
     
- 
     pthread_cond_broadcast(&cond_notEmpty);
 
   
@@ -238,7 +235,6 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
         }
     }
 
-  
 
     //master comunica al collector di chiudere  
     notifyCloseToCollector(pfd);
