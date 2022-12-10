@@ -150,8 +150,9 @@ static void addInSharedQueue(int fd){
 
     enqueueBack(&sharedQueue,file,fd); 
     freeSingleNode(&nodoBin); 
-    Pthread_mutex_unlock(&mutex_queue);
     Pthread_cond_signal(&cond_notEmpty);   
+    Pthread_mutex_unlock(&mutex_queue);
+   
   
 }
 
@@ -235,9 +236,10 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
 
 
     //master comunica al collector di chiudere  
-    notifyCloseToCollector(pfd);
 
-    //dopo il join so che nessun worker sta più usando fd_col
+    notifyCloseToCollector(pfd);
+    
+    //dopo il join dei workers posso chiudere fd_col
     close(fd_col);
     free(threadsInfo);
     free(workersPool);
@@ -251,8 +253,6 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     SYSCALL(err,waitpid(pid, &status,WUNTRACED),"waitpid");
     print_status(pid,status);
 
-
-    close(fd_socket);
  
     //una volta che il collector è chiuso il master può chiudere il thread signal handler
     SYSCALL(err,pthread_kill(signalHandler,SIGALRM),"kill");
@@ -262,7 +262,7 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
             exit(EXIT_FAILURE);
     }
 
-
+    close(fd_socket);
     cleanup();
     atexit(cleanup);
 

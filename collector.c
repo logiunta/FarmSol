@@ -38,11 +38,27 @@ static void maskSignals(sigset_t *set){
   
 }
 
+//Using for testing results
+static void writeOnFile(resFile* results,int size){
+
+    FILE* out = fopen("resultsCollector.txt","w");
+   
+    CHECKNULL(out,"fopen");
+    fprintf(out,"COLLECTOR:ARRIVATI %d file\n",size);
+    for(int i =0;i<size;i++){
+       fprintf(out,"%ld %s\n",results[i].sum,results[i].fileName);
+
+    }
+    
+  
+
+}
+
 
 void runCollector(int pfd){
     int fd_socket;
     struct sockaddr_un address; 
-    int n = 0,len,err,count = 0;
+    int n = 0,len,err,count = 0, ok  = 1;
     long sum;
     char* buff = NULL;
     address.sun_family = AF_UNIX;
@@ -66,7 +82,14 @@ void runCollector(int pfd){
     FD_SET(pfd,&set);
     if(pfd > fd_num) fd_num = pfd;
 
-    while(!_exit){
+
+    // FILE* fileRes = fopen("fileArrivedFromSocket.txt","w");
+   
+    // CHECKNULL(fileRes,"fopen");
+   
+
+    //ok mi serve per sapere se ci sono ancora dati da leggere dalla socket
+    while(!_exit || ok){
         readyset = set;
         
         if((err = select(fd_num + 1,&readyset,NULL,NULL,NULL))==-1){
@@ -79,7 +102,6 @@ void runCollector(int pfd){
                 if(FD_ISSET(fd,&readyset)){
                     
                     if(fd == fd_socket){ //pronta socket, leggo file dai workers
-                    
                         SYSCALL(n,read(fd_socket,&sum,sizeof(long)),"read sum");
                         if(n != 0){
                             SYSCALL(n,read(fd_socket,&len,sizeof(int)),"read len");
@@ -94,13 +116,17 @@ void runCollector(int pfd){
                                 }
 
                                 buff[len] = '\0';
-                                
 
+                              //  fprintf(fileRes,"%ld %s\n",sum,buff);
                                 addResult(&results,sum,buff,count);
                                 count++;
-    
                                 free(buff);
+                               
                             }
+                        }
+                        //la read ritorna 0, non c'è più niente da leggere dal socket
+                        else {
+                            ok = 0;
                         }
 
                     }
@@ -145,8 +171,10 @@ void runCollector(int pfd){
         }
     }
 
-  
+   // fclose(fileRes);
+
     sortResults(&results,count);
+    //writeOnFile(results,count);
     displayResults(results,count);
     freeResults(&results,count);
     exit(0);

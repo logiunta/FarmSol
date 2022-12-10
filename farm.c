@@ -29,9 +29,10 @@ int main(int argc, char *argv[])
     int pfds[2];
     int pfd;
 
+
     cleanup();
     atexit(cleanup);
- 
+
     sa.sun_family = AF_UNIX;
     strncpy(sa.sun_path,SOCKNAME,UNIX_MAX_PATH);
         

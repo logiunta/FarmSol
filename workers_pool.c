@@ -16,7 +16,7 @@
 threadinfo *threadsInfo = NULL;
 pthread_t *workersPool = NULL;
 
-pthread_mutex_t mutex_socket = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_socket = PTHREAD_MUTEX_INITIALIZER;
 extern queue* sharedQueue;
 extern pthread_mutex_t mutex_queue;
 extern pthread_cond_t cond_notEmpty;
@@ -63,19 +63,18 @@ static void executeTask(node* nodo,int tid){
         sum += (i*buffIn[i]);
         
     }
-   
+    
+
+    len = strlen(file);
 
     Pthread_mutex_lock(&mutex_socket);
     
-    len = strlen(file);
-
     SYSCALL(err,write(fd_coll,&sum,sizeof(long)),"write sum");
     SYSCALL(err,write(fd_coll,&len,sizeof(int)),"write len");
     SYSCALL(err,write(fd_coll,file,len),"write buff");
-    
+  
     Pthread_mutex_unlock(&mutex_socket);
    
-
     fclose(in);
     
     freeSingleNode(&nodo);
@@ -91,8 +90,8 @@ void* task(void* args){
         Pthread_mutex_lock(&mutex_queue);
         
         if(queueLen(sharedQueue) == 0 && requestedExit){
-            Pthread_mutex_unlock(&mutex_queue);
             Pthread_cond_signal(&cond_isFull);
+            Pthread_mutex_unlock(&mutex_queue);
             _exit = 1;
             
         }
@@ -104,16 +103,17 @@ void* task(void* args){
             }
 
             if(queueLen(sharedQueue) > 0){
-                node* nodo = dequeueFront(&sharedQueue);            
+                node* nodo = dequeueFront(&sharedQueue);  
+                Pthread_cond_signal(&cond_isFull);          
                 Pthread_mutex_unlock(&mutex_queue);
-                Pthread_cond_signal(&cond_isFull);
-
+               
                 executeTask(nodo,tid);
             }
 
             else {
-                Pthread_mutex_unlock(&mutex_queue);
                 Pthread_cond_signal(&cond_isFull);
+                Pthread_mutex_unlock(&mutex_queue);
+               
             }
         }
     
