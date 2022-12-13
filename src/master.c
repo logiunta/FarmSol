@@ -60,6 +60,63 @@ static void print_status(int pid,int status){
     fflush(stdout);
 }
 
+void handlerAlarm(int sig){
+    // write(1,"MASTER: timer scaduto, carico sulla coda\n",42);
+    return;
+
+}
+
+
+static void setMasterMask(){
+    int err;
+    struct sigaction s;
+    sigfillset(&setMaster);
+    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
+    memset(&s,0,sizeof(s));
+
+    s.sa_handler = handlerAlarm;
+    SYSCALL(err, sigaction(SIGALRM,&s,NULL),"Sigaction");
+    s.sa_handler = SIG_IGN;
+    SYSCALL(err, sigaction(SIGPIPE,&s,NULL),"Sigaction");
+    
+    sigemptyset(&setMaster);
+    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
+    sigaddset(&setMaster, SIGUSR1);
+    sigaddset(&setMaster, SIGINT);
+    sigaddset(&setMaster, SIGHUP);
+    sigaddset(&setMaster, SIGTERM);
+    sigaddset(&setMaster, SIGQUIT);
+    SYSCALL(err,pthread_sigmask(SIG_BLOCK,&setMaster,NULL),"pthread_sigmask");
+    
+}
+
+static void setHandlerMask(){
+    int err;
+    struct sigaction s;
+    sigfillset(&setMaster);
+    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
+    memset(&s,0,sizeof(s));
+    
+    s.sa_handler = SIG_IGN;
+    SYSCALL(err, sigaction(SIGPIPE,&s,NULL),"Sigaction");
+    sigemptyset(&set);
+    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&set,NULL),"pthread_sigmask");
+
+    sigaddset(&set, SIGUSR1);
+    sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGHUP);
+    sigaddset(&set, SIGTERM);
+    sigaddset(&set, SIGQUIT);
+   
+    SYSCALL(err,pthread_sigmask(SIG_BLOCK,&set,NULL),"pthread_sigmask");
+}
+
+
+void cleanup(){
+    unlink(SOCKNAME);
+}
+
 
 static void notifyCloseToCollector(int pfd){
     int err;
@@ -88,7 +145,9 @@ static void* handler(void* args){
     int* pfd = (int*)args;
     int sig = 0;
     int err;
-   
+
+    setHandlerMask();
+    printf("HANDLER: waiting for some signal. . .\n");
     while(!requestedExit){
         sigwait(&set,&sig);
 
@@ -98,12 +157,15 @@ static void* handler(void* args){
             case SIGHUP:
             case SIGTERM:
             case SIGINT:
+                printf("HANDLER: closure request received\n");
                 SYSCALL(err,pthread_kill(tidMaster,SIGALRM),"kill");
                 requestedExit = 1;
                 break;
           
             //caso in cui il master deve inviare una notifica di stampa al collector
             case SIGUSR1:
+                printf("HANDLER: notify to collector\n");
+                fflush(stdout);
                 notifyDisplayToCollector(*pfd);
                 break;
             
@@ -114,64 +176,8 @@ static void* handler(void* args){
         }
     }   
 
-  
+    printf("HANDLER: closing\n");
     pthread_exit(0);
-}
-
-void handlerAlarm(int sig){
-    write(1,"ALARM arrivato\n",16);
-
-}
-
-static void setAlarmMask(){
-    int err;
-    struct sigaction s;
-    sigfillset(&setMaster);
-    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
-    memset(&s,0,sizeof(s));
-
-    s.sa_handler = handlerAlarm;
-    SYSCALL(err, sigaction(SIGALRM,&s,NULL),"Sigaction");
-    s.sa_handler = SIG_IGN;
-    SYSCALL(err, sigaction(SIGPIPE,&s,NULL),"Sigaction");
-    
-    sigemptyset(&setMaster);
-    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
-    sigaddset(&setMaster, SIGUSR1);
-    sigaddset(&setMaster, SIGINT);
-    sigaddset(&setMaster, SIGHUP);
-    sigaddset(&setMaster, SIGTERM);
-    sigaddset(&setMaster, SIGQUIT);
-    SYSCALL(err,pthread_sigmask(SIG_BLOCK,&setMaster,NULL),"pthread_sigmask");
-    
-}
-
-static void setMask(){
-    int err;
-    struct sigaction s;
-    sigfillset(&setMaster);
-    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
-    memset(&s,0,sizeof(s));
-    
-    s.sa_handler = SIG_IGN;
-    SYSCALL(err, sigaction(SIGPIPE,&s,NULL),"Sigaction");
-    sigemptyset(&set);
-    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&set,NULL),"pthread_sigmask");
-
-    sigaddset(&set, SIGUSR1);
-    sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIGPIPE);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGHUP);
-    sigaddset(&set, SIGTERM);
-    sigaddset(&set, SIGQUIT);
-   
-    SYSCALL(err,pthread_sigmask(SIG_BLOCK,&set,NULL),"pthread_sigmask");
-}
-
-
-void cleanup(){
-    unlink(SOCKNAME);
 }
 
 
@@ -205,26 +211,22 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
 
     int fd_col;
 
-    setMask();
-    setAlarmMask();
+    setMasterMask();
 
     initQueue(&listBin);
 
     res = parseArguments(argc,argv,&n,&q,&t,&listBin);
 
-    if(queueLen(listBin) == 0){
-        fprintf(stderr,"No correct files found\n");
+    if(queueLen(listBin) == 0 || res == -1){
+        fprintf(stderr,"MASTER: error reading arguments\n");
         freeQueue(&listBin);
         notifyCloseToCollector(pfd);
+        cleanup();
+        atexit(cleanup);
         exit(EXIT_FAILURE);
-
+      
     }
  
-    if(res == -1){
-        freeQueue(&listBin);
-        notifyCloseToCollector(pfd);
-        exit(EXIT_FAILURE);
-    }
 
 
     if(n > 0)
@@ -266,13 +268,14 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
             
         }
 
-        if(!requestedExit && queueLen(listBin) > 0)
+        if(!requestedExit && queueLen(listBin) > 0){
+            printf("Master:add in queue\n");
             addInSharedQueue(fd_col);
+        }
 
         else _exit = 1;
-        
+ 
     }
-    
         
     
     //il master comunica ai workers di chiudere
@@ -292,6 +295,7 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
 
     //master comunica al collector di chiudere  
 
+    printf("MASTER: waiting for collector\n");
     notifyCloseToCollector(pfd);
     
     //dopo il join dei workers posso chiudere fd_col
@@ -308,14 +312,15 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     SYSCALL(err,waitpid(pid, &status,WUNTRACED),"waitpid");
     print_status(pid,status);
 
- 
     //una volta che il collector è chiuso il master può chiudere il thread signal handler
     SYSCALL(err,pthread_kill(signalHandler,SIGALRM),"kill");
 
+    
     if(pthread_join(signalHandler,NULL) != 0){
             perror("join");
             exit(EXIT_FAILURE);
     }
+
 
     close(fd_socket);
     cleanup();

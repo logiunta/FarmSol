@@ -4,10 +4,10 @@
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
-#include <collector.h>
+#include "collector.h"
 #include <sys/un.h>
 #include <signal.h>
-#include <check_errors.h>
+#include "check_errors.h"
 #include <sys/socket.h>
 #include "socket_info.h"
 #include <unistd.h>
@@ -32,7 +32,6 @@ static void maskSignals(sigset_t *set){
     sigemptyset(set);
     SYSCALL(err,pthread_sigmask(SIG_SETMASK,set,NULL),"pthread_sigmask");
 
-    sigaddset(set, SIGPIPE);
     sigaddset(set, SIGINT);
     sigaddset(set, SIGHUP);
     sigaddset(set, SIGTERM);
@@ -92,7 +91,8 @@ void runCollector(int pfd){
     // FILE* fileRes = fopen("fileArrivedFromSocket.txt","w");
    
     // CHECKNULL(fileRes,"fopen");
-   
+    
+    printf("COLLECTOR: connected\n");
 
     //ok mi serve per sapere se ci sono ancora dati da leggere dalla socket
     while(!_exit || ok){
@@ -133,6 +133,7 @@ void runCollector(int pfd){
                         //la read ritorna 0, non c'è più niente da leggere dal socket
                         else {
                             ok = 0;
+                            break;
                         }
 
                     }
@@ -172,16 +173,21 @@ void runCollector(int pfd){
                     }
 
                 }
+               
 
             }
         }
     }
 
-   // fclose(fileRes);
+     
 
+   // fclose(fileRes);
     sortResults(&results,count);
     //writeOnFile(results,count);
     displayResults(results,count);
     freeResults(&results,count);
+    printf("Collector: closing\n");
+    fflush(stdout);
+  
     exit(0);
 }

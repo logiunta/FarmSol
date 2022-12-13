@@ -1,44 +1,60 @@
 CC = gcc
 
-CFLAGS += -g -Wall -std=c99 -I ./headers
+CFLAGS = -g -Wall -std=c99 -I ./headers
 
-objects = parse_arguments.o collector.o workers_pool.o queue_utils.o results_utils.o valid_file.o pthread_utils.o master.o farm.o 
+objectsPath = src
+
+generafilePath = tests
+
+objects = $(objectsPath)/parse_arguments.o $(objectsPath)/collector.o $(objectsPath)/workers_pool.o $(objectsPath)/queue_utils.o $(objectsPath)/results_utils.o $(objectsPath)/valid_file.o $(objectsPath)/pthread_utils.o $(objectsPath)/master.o $(objectsPath)/main.o
+
+generafileObj = $(generafilePath)/generafile
 
 
-.PHONY : clean cleanAll run
+.PHONY : clean cleanAll run test 
 
-run: farm clean
+run: runFarm clean
 
 cleanAll: 
 	-rm -f file*.dat
-	-rm -f -R testdir
+	-rm -f -r tests/testdir
+	-rm -f -r tests/file*.dat
+	-rm -f -r tests/expected.txt
 	-rm -f expected.txt
+	-rm -f $(objects) $(generafile)
 
 clean : 
-	-rm -f $(objects)
+	-rm -f $(objects) $(generafile)
 
-farm : $(objects) 
-	$(CC) $(CFLAGS) $(objects) -o farm
+runFarm : $(objects) 
+		$(CC) $(CFLAGS) $(objects) -o farm
 
 
-test : test.sh
-	./test.sh
+test: runTest clean
+
+runTest : $(generafileObj) $(objects)
+		$(CC) $(CFLAGS) $(objects) -o tests/farm
+		cd tests;./test.sh
+			
+		
+generafile :$(generafilePath)/generafile.c
+			$(CC) -std=c99 $(generafilePath)/generafile.c -o generafile
 	
-workers_pool.o : workers_pool.c 
+workers_pool.o : $(objectsPath)/workers_pool.c 
 
-parse_arguments.o : parse_arguments.c 
+parse_arguments.o : $(objectsPath)/parse_arguments.c 
 
-master.o : master.c
+master.o : $(objectsPath)/master.c
 
-valid_file.o : valid_file.c
+valid_file.o : $(objectsPath)/valid_file.c
 
-queue_utils.o : queue_utils.c
+queue_utils.o : $(objectsPath)/queue_utils.c
 
-results_utils.o : results_utils.c
+results_utils.o : $(objectsPath)/results_utils.c
 
-collector.o : collector.c
+collector.o : $(objectsPath)/collector.c
 
-farm.o : farm.c
+main.o : $(objectsPath)/main.c
 
 
 
