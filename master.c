@@ -20,8 +20,12 @@
 #include "workers_pool.h"
 #include "socket_info.h"
 #include "collector.h"
+#include <sys/time.h>
 
 static sigset_t set;
+static sigset_t setMaster;
+static pthread_t tidMaster;
+
 static queue* listBin = NULL;
 static int nthreads = NTHREADS;
 static int queueDim = QUEUESIZE;
@@ -83,6 +87,7 @@ static void notifyDisplayToCollector(int pfd){
 static void* handler(void* args){
     int* pfd = (int*)args;
     int sig = 0;
+    int err;
    
     while(!requestedExit){
         sigwait(&set,&sig);
@@ -94,6 +99,7 @@ static void* handler(void* args){
             case SIGTERM:
             case SIGPIPE:
             case SIGINT:
+                SYSCALL(err,pthread_kill(tidMaster,SIGALRM),"kill");
                 printf("SEGNALE CATTURATO\n");
                 requestedExit = 1;
                 break;
@@ -114,11 +120,34 @@ static void* handler(void* args){
     pthread_exit(0);
 }
 
+void handlerAlarm(int sig){
+    write(1,"ALARM arrivato\n",16);
 
+}
+
+static void setAlarmHandler(){
+    int err;
+    struct sigaction s;
+    sigfillset(&setMaster);
+    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
+    memset(&s,0,sizeof(s));
+    s.sa_handler = handlerAlarm;
+    SYSCALL(err, sigaction(SIGALRM,&s,NULL),"Sigaction");
+    sigemptyset(&setMaster);
+    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
+    sigaddset(&setMaster, SIGUSR1);
+    sigaddset(&setMaster, SIGPIPE);
+    sigaddset(&setMaster, SIGINT);
+    sigaddset(&setMaster, SIGHUP);
+    sigaddset(&setMaster, SIGTERM);
+    sigaddset(&setMaster, SIGQUIT);
+    SYSCALL(err,pthread_sigmask(SIG_BLOCK,&setMaster,NULL),"pthread_sigmask");
+    
+
+}
 
 static void setMask(){
     int err;
-
     sigemptyset(&set);
     SYSCALL(err,pthread_sigmask(SIG_SETMASK,&set,NULL),"pthread_sigmask");
 
@@ -137,6 +166,7 @@ static void setMask(){
 void cleanup(){
     unlink(SOCKNAME);
 }
+
 
 
 static void addInSharedQueue(int fd){
@@ -163,10 +193,13 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     int status;
     int _exit = 0;
     pthread_t signalHandler;
+    struct itimerval timer;
+    tidMaster = pthread_self();
 
     int fd_col;
 
     setMask();
+    setAlarmHandler();
 
     initQueue(&listBin);
 
@@ -208,8 +241,24 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
 
     SYSCALL(fd_col,accept(fd_socket,NULL,NULL),"accept");
     while(!_exit){
-        if(t != 0)
-            sleep((t/1000));
+        if(t != 0){
+            timer.it_interval.tv_sec = 0;
+            timer.it_interval.tv_usec = 0; /*no reload*/
+            if(t >= 1000){
+                timer.it_value.tv_sec = (t/1000);
+                timer.it_value.tv_usec = 0;
+
+            }
+            else{
+                timer.it_value.tv_sec = 0;
+                timer.it_value.tv_usec = (t*100);
+            }
+
+            SYSCALL(err,setitimer(ITIMER_REAL,&timer,NULL),"setitimer");
+            
+            pause();
+            
+        }
 
         if(!requestedExit && queueLen(listBin) > 0)
             addInSharedQueue(fd_col);
