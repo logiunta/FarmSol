@@ -97,10 +97,8 @@ static void* handler(void* args){
             case SIGQUIT:
             case SIGHUP:
             case SIGTERM:
-            case SIGPIPE:
             case SIGINT:
                 SYSCALL(err,pthread_kill(tidMaster,SIGALRM),"kill");
-                printf("SEGNALE CATTURATO\n");
                 requestedExit = 1;
                 break;
           
@@ -125,29 +123,38 @@ void handlerAlarm(int sig){
 
 }
 
-static void setAlarmHandler(){
+static void setAlarmMask(){
     int err;
     struct sigaction s;
     sigfillset(&setMaster);
     SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
     memset(&s,0,sizeof(s));
+
     s.sa_handler = handlerAlarm;
     SYSCALL(err, sigaction(SIGALRM,&s,NULL),"Sigaction");
+    s.sa_handler = SIG_IGN;
+    SYSCALL(err, sigaction(SIGPIPE,&s,NULL),"Sigaction");
+    
     sigemptyset(&setMaster);
     SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
     sigaddset(&setMaster, SIGUSR1);
-    sigaddset(&setMaster, SIGPIPE);
     sigaddset(&setMaster, SIGINT);
     sigaddset(&setMaster, SIGHUP);
     sigaddset(&setMaster, SIGTERM);
     sigaddset(&setMaster, SIGQUIT);
     SYSCALL(err,pthread_sigmask(SIG_BLOCK,&setMaster,NULL),"pthread_sigmask");
     
-
 }
 
 static void setMask(){
     int err;
+    struct sigaction s;
+    sigfillset(&setMaster);
+    SYSCALL(err,pthread_sigmask(SIG_SETMASK,&setMaster,NULL),"pthread_sigmask");
+    memset(&s,0,sizeof(s));
+    
+    s.sa_handler = SIG_IGN;
+    SYSCALL(err, sigaction(SIGPIPE,&s,NULL),"Sigaction");
     sigemptyset(&set);
     SYSCALL(err,pthread_sigmask(SIG_SETMASK,&set,NULL),"pthread_sigmask");
 
@@ -199,7 +206,7 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
     int fd_col;
 
     setMask();
-    setAlarmHandler();
+    setAlarmMask();
 
     initQueue(&listBin);
 
@@ -254,8 +261,7 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
                 timer.it_value.tv_usec = (t*100);
             }
 
-            SYSCALL(err,setitimer(ITIMER_REAL,&timer,NULL),"setitimer");
-            
+            SYSCALL(err,setitimer(ITIMER_REAL,&timer,NULL),"setitimer"); //when timer expires a SIGALARM is raised and wake up from pause
             pause();
             
         }

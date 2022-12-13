@@ -22,6 +22,12 @@ static char* displayString = "display";
 
 static void maskSignals(sigset_t *set){
     int err;
+    struct sigaction s;
+    sigfillset(set);
+    SYSCALL(err,pthread_sigmask(SIG_SETMASK,set,NULL),"pthread_sigmask");
+    memset(&s,0,sizeof(s));
+    s.sa_handler = SIG_IGN;
+    SYSCALL(err, sigaction(SIGPIPE,&s,NULL),"Sigaction");
 
     sigemptyset(set);
     SYSCALL(err,pthread_sigmask(SIG_SETMASK,set,NULL),"pthread_sigmask");
@@ -39,20 +45,20 @@ static void maskSignals(sigset_t *set){
 }
 
 //Using for testing results
-static void writeOnFile(resFile* results,int size){
+// static void writeOnFile(resFile* results,int size){
 
-    FILE* out = fopen("resultsCollector.txt","w");
+//     FILE* out = fopen("resultsCollector.txt","w");
    
-    CHECKNULL(out,"fopen");
-    fprintf(out,"COLLECTOR:ARRIVATI %d file\n",size);
-    for(int i =0;i<size;i++){
-       fprintf(out,"%ld %s\n",results[i].sum,results[i].fileName);
+//     CHECKNULL(out,"fopen");
+//     fprintf(out,"COLLECTOR:ARRIVATI %d file\n",size);
+//     for(int i =0;i<size;i++){
+//        fprintf(out,"%ld %s\n",results[i].sum,results[i].fileName);
 
-    }
+//     }
     
   
 
-}
+// }
 
 
 void runCollector(int pfd){
