@@ -185,8 +185,8 @@ int parseArguments(int argc, char* argv[],int *n,int *q, long *t,queue** list){
 
   
     //found some files with incorrect format 
-    // if(errors != 0)
-    //     fprintf(stderr,"Found some files with incorrect format: read only regular and binary files\n");
+    if(errors != 0)
+        fprintf(stderr,"Found some files with incorrect format: read only regular and binary files\n");
 
     return 0;
 }

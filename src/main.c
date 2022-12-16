@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
         close(pfds[0]);
         pfd = pfds[1];
         runMaster(argc,argv,pid,fd_socket,pfd);
+        close(pfd);
      
     }
 
@@ -61,6 +62,7 @@ int main(int argc, char *argv[])
         close(pfds[1]);
         pfd = pfds[0];
         runCollector(pfd);
+        close(pfd);
 
     }
 

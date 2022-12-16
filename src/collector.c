@@ -106,7 +106,7 @@ void runCollector(int pfd){
             for(fd=0;fd<=fd_num;fd++){
                 
                 if(FD_ISSET(fd,&readyset)){
-                    
+                                
                     if(fd == fd_socket){ //pronta socket, leggo file dai workers
                         SYSCALL(n,read(fd_socket,&sum,sizeof(long)),"read sum");
                         if(n != 0){
@@ -144,6 +144,7 @@ void runCollector(int pfd){
                             FD_CLR(pfd,&set);
                             if(fd == fd_num)
                                 fd_num--;
+                            ok = 0;
                             break;
     
                         }

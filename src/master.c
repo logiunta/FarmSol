@@ -187,6 +187,8 @@ static void addInSharedQueue(int fd){
     char* file = nodoBin->fileName;
     Pthread_mutex_lock(&mutex_queue);
     while(queueLen(sharedQueue) >= queueDim){
+        printf("MASTER: queue is full, waiting for it to release\n");
+        fflush(stdout);
         Pthread_cond_wait(&cond_isFull,&mutex_queue);
         
     }
@@ -318,8 +320,8 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
 
     
     if(pthread_join(signalHandler,NULL) != 0){
-            perror("join");
-            exit(EXIT_FAILURE);
+        perror("join");
+        exit(EXIT_FAILURE);
     }
 
 
