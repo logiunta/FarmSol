@@ -227,7 +227,8 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
       
     }
  
-
+    if (q > 0)
+        queueDim = q;
 
     if(n > 0)
         nthreads = n;
