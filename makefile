@@ -1,6 +1,6 @@
 CC = gcc
 
-CFLAGS = -g -Wall -std=c99 -I ./headers
+CFLAGS = -g -Wall -std=c99 -I ./headers -pthread
 
 objectsPath = src
 
