@@ -67,7 +67,7 @@ void runCollector(int pfd){
     long sum;
     char* buff = NULL;
     address.sun_family = AF_UNIX;
-    strncpy(address.sun_path,SOCKNAME,UNIX_MAX_PATH);
+    strncpy(address.sun_path,SOCKET,UNIX_MAX_PATH);
     int _exit = 0;
     sigset_t set_mask;
     maskSignals(&set_mask);

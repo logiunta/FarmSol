@@ -13,12 +13,16 @@
 #include "master.h"
 #include "check_errors.h"
 #include "queue_utils.h"
-#include <pthread.h>
 #include <signal.h>
-#include <collector.h>
-#include <socket_info.h>
-#include <sys/socket.h>
+#include "collector.h"
+#include "socket_info.h"
 #include <sys/un.h>
+
+
+void deleteSocketFile(){
+    unlink(SOCKET);
+}
+
 
 
 int main(int argc, char *argv[])
@@ -29,12 +33,11 @@ int main(int argc, char *argv[])
     int pfds[2];
     int pfd;
 
-
-    cleanup();
-    atexit(cleanup);
+    deleteSocketFile();
+    atexit(deleteSocketFile);
 
     sa.sun_family = AF_UNIX;
-    strncpy(sa.sun_path,SOCKNAME,UNIX_MAX_PATH);
+    strncpy(sa.sun_path,SOCKET,UNIX_MAX_PATH);
         
     SYSCALL(fd_socket,socket(AF_UNIX,SOCK_STREAM,0),"socket");
 

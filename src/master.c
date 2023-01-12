@@ -113,10 +113,6 @@ static void setHandlerMask(){
 }
 
 
-void cleanup(){
-    unlink(SOCKNAME);
-}
-
 
 static void notifyCloseToCollector(int pfd){
     int err;
@@ -223,8 +219,6 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
         fprintf(stderr,"MASTER: error reading arguments\n");
         freeQueue(&listBin);
         notifyCloseToCollector(pfd);
-        cleanup();
-        atexit(cleanup);
         exit(EXIT_FAILURE);
       
     }
@@ -326,9 +320,7 @@ void runMaster(int argc,char* argv[],int pid,int fd_socket,int pfd){
 
 
     close(fd_socket);
-    cleanup();
-    atexit(cleanup);
-
+   
 
     exit(0);
 
