@@ -1,13 +1,11 @@
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <string.h>
+#include "valid_file.h"
 
 
 int is_regular_file(const char *path, struct stat *path_stat){
     return S_ISREG((*path_stat).st_mode);
-} // char* ext = fileExtension(path);
-    // if((strncmp(ext,"dat",strlen(ext)) != 0) && (strncmp(ext,"",strlen(ext)) != 0))
-    //     return 0;
+} 
 
 
 char* fileExtension(const char *path){
@@ -36,9 +34,10 @@ int is_executable_file(const char* path,struct stat *path_stat){
 }
 
 int isBinaryFile(const char* path,struct stat *path_stat){
-    // char* ext = fileExtension(path);
-    // if((strncmp(ext,"dat",strlen(ext)) != 0) && (strncmp(ext,"",strlen(ext)) != 0))
-    //     return 0;
+    char* ext = fileExtension(path);
+    if((strncmp(ext,"dat",strlen(ext))) != 0)
+         return 0;
+
     long filelen = getFileSize(path,path_stat);
 
     if((filelen % 8) != 0)

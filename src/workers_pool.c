@@ -16,12 +16,12 @@
 threadinfo *threadsInfo = NULL;
 pthread_t *workersPool = NULL;
 
-pthread_mutex_t mutex_socket = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_socket = PTHREAD_MUTEX_INITIALIZER;
 extern queue* sharedQueue;
 extern pthread_mutex_t mutex_queue;
 extern pthread_cond_t cond_notEmpty;
 extern pthread_cond_t cond_isFull;
-extern int requestedExit;
+extern volatile int requestedExit;
 
 
 static void executeTask(node* nodo,int tid){
@@ -30,19 +30,15 @@ static void executeTask(node* nodo,int tid){
     long n;
     FILE* in;
     long len;
-    int sum = 0,err;
+    long sum = 0,err;
 
     //simulate work time for each execution
 
-    int randomTime = (rand() % 3000) + 1000 ;
-    printf("WOrker %d: eseguo il lavoro per %d(ms). . . \n",tid,randomTime);
-    fflush(stdout);
-
-    randomTime = randomTime/1000;
+    // int randomTime = (rand() % 3000) + 1000 ;
    
-    sleep(randomTime);
-
-  
+    // randomTime = randomTime/1000;
+   
+    // sleep(randomTime);
 
     in = fopen(file,"rb");
     CHECKNULL(in,"fopen");
@@ -62,23 +58,23 @@ static void executeTask(node* nodo,int tid){
         exit(EXIT_FAILURE);
     }   
 
+   
     for(int i=0;i<len;i++){
         sum += (i*buffIn[i]);
         
     }
+    
 
-  //  printf("SOMMA per il file %s: %d\n",file,sum);
-    Pthread_mutex_lock(&mutex_socket);
-    printf("WORKER %d: acquisisco il lock per scrivere\n",tid);
-    fflush(stdout);
     len = strlen(file);
-    printf("Worker %d: consumato il file %s\n",tid,file);
-    fflush(stdout);
+
+    Pthread_mutex_lock(&mutex_socket);
+    
+    SYSCALL(err,write(fd_coll,&sum,sizeof(long)),"write sum");
     SYSCALL(err,write(fd_coll,&len,sizeof(int)),"write len");
     SYSCALL(err,write(fd_coll,file,len),"write buff");
+  
     Pthread_mutex_unlock(&mutex_socket);
    
-
     fclose(in);
     
     freeSingleNode(&nodo);
@@ -94,39 +90,37 @@ void* task(void* args){
         Pthread_mutex_lock(&mutex_queue);
         
         if(queueLen(sharedQueue) == 0 && requestedExit){
-            Pthread_mutex_unlock(&mutex_queue);
             Pthread_cond_signal(&cond_isFull);
+            Pthread_mutex_unlock(&mutex_queue);
             _exit = 1;
             
         }
 
         else{
             while(queueLen(sharedQueue) == 0 && !requestedExit){
-                printf("WORKER %d in attesa\n",tid);
                 Pthread_cond_wait(&cond_notEmpty,&mutex_queue);
-                printf("Worker %d risvegliato\n",tid);
-                fflush(stdout);
-
+              
             }
 
             if(queueLen(sharedQueue) > 0){
-                node* nodo = dequeueFront(&sharedQueue);            
+                node* nodo = dequeueFront(&sharedQueue);  
+                Pthread_cond_signal(&cond_isFull);          
                 Pthread_mutex_unlock(&mutex_queue);
-                Pthread_cond_signal(&cond_isFull);
-
+               
                 executeTask(nodo,tid);
             }
 
             else {
-                Pthread_mutex_unlock(&mutex_queue);
                 Pthread_cond_signal(&cond_isFull);
+                Pthread_mutex_unlock(&mutex_queue);
+               
             }
         }
     
     }
         
    
-    printf("Worker %d: esco dal pool e mi chiudo: requesteExit = %d\n",tid,requestedExit);
+   
     pthread_exit(0);
 
         

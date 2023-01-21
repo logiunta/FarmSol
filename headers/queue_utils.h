@@ -15,15 +15,14 @@ typedef struct Queue{
     node* head;
 }queue;
 
+
 void initQueue(queue** q);
 int queueLen(queue *q);
-void enqueueFront(queue **q, char *val, int fd);
 void enqueueBack(queue **q, char *val, int fd);
 void queueDisplay(queue *q);
 void freeQueue(queue **q);
 node* dequeueFront(queue** q);
 void freeSingleNode(node** node);
-
 
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef VALID_FILE
 #define VALID_FILE
 
+#include <sys/stat.h>
+
 
 int is_regular_file(const char *path,struct stat *path_stat);
 char* fileExtension(const char *path);

@@ -12,17 +12,6 @@ void initQueue(queue** q){
     (*q)->size = 0;
 }
 
-void enqueueFront(queue** q,char *val, int fd){
-    node *new = malloc(sizeof(node));
-    CHECKNULL(new,"malloc");
-
-    new->fileName = val;
-    new->fd = fd;
-    new->next = (*q)->head;
-    
-    (*q)->head = new;
-    (*q)->size++;
-}
 
 node* dequeueFront(queue** q){
   
@@ -48,6 +37,7 @@ void enqueueBack(queue** q, char *val, int fd){
             
         len = strlen(val);
         tmp->fileName = malloc(sizeof(char)*len+1);
+        CHECKNULL(tmp->fileName,"malloc");
         strncpy(tmp->fileName,val,len);
         tmp->fileName[len] = '\0';
         tmp->fd = fd;
@@ -90,7 +80,6 @@ void queueDisplayWithFd(queue* q){
 
 
 void queueDisplay(queue* q){
-    printf("STAMPO LA LISTA:\n");
     node *curr = q->head;
     while(curr != NULL){
         printf("%s ",curr->fileName);
@@ -123,3 +112,5 @@ void freeSingleNode(node** q){
     free((*q)->fileName);
     free(*q);
 }
+
+

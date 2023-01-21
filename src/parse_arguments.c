@@ -53,7 +53,6 @@ void goInDir(char*path,queue** list,int *errors,struct stat *path_stat){
             }
                 
             else if(res == 1){
-                printf("dir: %s\n",relativePath);
                 goInDir(relativePath,list,errors,path_stat);
             }
 
@@ -87,9 +86,9 @@ void goInDir(char*path,queue** list,int *errors,struct stat *path_stat){
 
 //check arguments and options
 int parseArguments(int argc, char* argv[],int *n,int *q, long *t,queue** list){
-    int opt,len;
+    int opt,len,res,num;
     int errors = 0;
-    int res;
+    long delay;
     char file[MAXFILENAME],*p;
     struct stat path_stat;
 
@@ -103,13 +102,12 @@ int parseArguments(int argc, char* argv[],int *n,int *q, long *t,queue** list){
     while (optind <= argc) {
     
         if((opt = getopt(argc, argv, ":n:q:d:t:")) != -1) {
-          
-
+        
             switch (opt)
             {
                 case 'n':
                 case 'q':
-                    int num = atoi(optarg);
+                    num = atoi(optarg);
                     if(num == 0){
                         fprintf(stderr,"Error: %s is not a valid argument for option -%c\n",optarg,opt);
                         return -1;
@@ -123,7 +121,7 @@ int parseArguments(int argc, char* argv[],int *n,int *q, long *t,queue** list){
                     break;
 
                 case 't':
-                    long delay = strtol(optarg,&p,10);
+                    delay = strtol(optarg,&p,10);
                     if(delay == 0){
                         fprintf(stderr,"Error: %s is not a valid argument for option -%c\n",optarg,opt);
                         return -1;
@@ -188,9 +186,7 @@ int parseArguments(int argc, char* argv[],int *n,int *q, long *t,queue** list){
   
     //found some files with incorrect format 
     if(errors != 0)
-        fprintf(stderr,"Found some files with incorrect format: take only regular and binary files\n");
-
- 
+        fprintf(stderr,"Found some files with incorrect format: read only regular and binary files\n");
 
     return 0;
 }

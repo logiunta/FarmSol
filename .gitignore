@@ -10,3 +10,8 @@
 /provabinary
 /test
 /testFiles
+/testdir/
+/file*.dat
+/expected.txt
+farm
+generafile
